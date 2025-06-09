@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>PLAVE GAME</title>
+<meta charset="utf-8">
+<style>
+    /* Basic Reset & Font */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        display: flex; justify-content: center; align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden; /* Prevent body scrollbars from petal overflow */
+        padding: 20px 0;
+    }
+    #game-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        width: 480px; /* Ensure wrapper has dimensions for petal container */
+        height: 720px; /* Ensure wrapper has dimensions for petal container */
+        overflow: hidden; /* Clip petals that go outside the main wrapper */
+        border-radius: 12px; /* Apply border radius to wrapper for clipping */
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); /* Moved shadow here */
+    }
+
+    /* --- Falling Petals --- */
+    #petal-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none; /* Allow clicks through */
+        overflow: hidden; /* Keep petals contained */
+        z-index: 5; /* Behind UI overlays but above background */
+    }
+
+    .petal {
+        position: absolute;
+        background-color: rgba(255, 192, 203, 0.7); /* Light pink with transparency */
+        border-radius: 50% 0 50% 0; /* Simple petal shape */
+        width: 10px;
+        height: 15px;
+        opacity: 0; /* Start hidden */
+        animation: fall linear forwards; /* Use 'forwards' to keep final state */
+        transform-origin: center center;
+        filter: blur(1px); /* Soften the look */
+    }
+
+    /* Adjusted Keyframes using fixed wrapper height */
+    @keyframes fall {
+        0% {
+            transform: translateY(-20px) rotate(0deg) translateX(0px);
+            opacity: 1;
+        }
+        50% {
+            /* Fall halfway down the game wrapper */
+            transform: translateY(calc(720px * 0.5 + 50px)) rotate(180deg) translateX(15px);
+        }
+        100% {
+            /* Fall completely past the game wrapper */
+            transform: translateY(calc(720px + 30px)) rotate(360deg) translateX(-10px);
+            opacity: 0.5; /* Fade slightly at the end */
+        }
+    }
+    /* --- End Falling Petals --- */
+
+
+    /* --- Start Menu --- */
+    .menu-link {
+        display: block;
+        margin-bottom: 15px;
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        font-size: 14px;
+        transition: color 0.2s ease;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+    }
+    .menu-link:hover {
+        color: white;
+        text-decoration: underline;
+    }
+
+    #start-menu {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        z-index: 30; /* On top of petals and game */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border-radius: 12px; /* Match game container */
+        /* Background Image */
+        background-image: url('https://i.imgur.com/vpOU22r.jpeg');
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+        color: white;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+    }
+    #start-menu::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: rgba(0, 0, 0, 0.4);
+        border-radius: 12px;
+        z-index: -1;
+    }
+    #start-menu h1 { margin-bottom: 20px; font-size: 52px; }
+    #difficulty-select { margin-bottom: 25px; }
+    #difficulty-select button {
+        font-size: 18px; padding: 10px 25px; margin: 0 10px; cursor: pointer;
+        border: 2px solid #eee; background-color: rgba(255, 255, 255, 0.2); color: #eee;
+        border-radius: 8px; transition: all 0.2s ease;
+        backdrop-filter: blur(2px);
+    }
+    #difficulty-select button:hover { background-color: rgba(255, 255, 255, 0.4); }
+    #difficulty-select button.active {
+        background-color: #87CEEB; /* Baby Blue */
+        color: white;
+        font-weight: bold;
+        border-color: #87CEEB; /* Baby Blue */
+    }
+    #volume-control {
+        margin-bottom: 25px;
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        color: #f0f0f0;
+    }
+     #volume-control label { margin-bottom: 8px; font-size: 16px; }
+    #volume-slider {
+        cursor: pointer;
+        width: 150px;
+        accent-color: #FFD700; /* Yellow (Gold) */
+    }
+    #start-button {
+        font-size: 24px; padding: 15px 40px; cursor: pointer;
+        background-color: #87CEEB; /* Baby Blue */
+        color: white; border: none;
+        border-radius: 10px; transition: background-color 0.2s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); text-shadow: none;
+    }
+    #start-button:hover {
+        background-color: #76BEEB; /* Darker Baby Blue */
+    }
+
+    /* --- Game Container & Canvas --- */
+    #game-container {
+        position: absolute; /* Positioned within the wrapper */
+        top: 0;
+        left: 0;
+        width: 100%; /* Takes wrapper's width */
+        height: 100%; /* Takes wrapper's height */
+        border-radius: 12px; /* Already applied by wrapper */
+        overflow: hidden;
+        z-index: 1; /* Below petals and UI */
+    }
+    canvas#gameCanvas {
+        display: block;
+        background-image: url('https://i.imgur.com/l454AVv.jpeg');
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* --- In-Game UI --- */
+    .ui-element { display: none; } /* Default hide UI elements */
+    .ui-overlay {
+        position: absolute; top: 0; left: 0; width: 100%;
+        pointer-events: none;
+        display: flex; justify-content: space-between;
+        align-items: flex-start;
+        padding: 20px 25px;
+        z-index: 10; /* Above petals and game canvas */
+    }
+    #score-timer-container {
+        display: none; /* Start hidden, shown in JS */
+        flex-direction: column;
+        align-items: flex-start;
+        pointer-events: auto;
+    }
+    #score {
+        font-size: 30px; font-weight: 700; color: #34495e;
+        text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.8);
+        display: none; /* Start hidden, shown in JS */
+    }
+    #drop-timer-display {
+        font-size: 20px;
+        font-weight: bold;
+        color: #F781BE;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 3px 8px;
+        border-radius: 5px;
+        margin-top: 5px;
+        display: none; /* Start hidden */
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    #next-preview-container {
+       position: relative;
+       display: none; /* Start hidden, shown in JS */
+       justify-content: center; align-items: center;
+       width: 80px; height: 80px;
+       pointer-events: auto;
+    }
+    #nextCanvas {
+        width: 80px; height: 80px; background-color: transparent;
+        display: none; /* Start hidden, shown in JS */
+    }
+    #menu-button { /* Settings Icon */
+        position: absolute;
+        top: -5px; right: -25px;
+        width: 30px; height: 30px; font-size: 20px;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(0,0,0,0.1); border-radius: 50%;
+        cursor: pointer;
+        display: none; /* Start hidden, shown in JS */
+        align-items: center; justify-content: center;
+        z-index: 15;
+        transition: background-color 0.2s ease;
+        pointer-events: auto;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    #menu-button:hover { background: rgba(255, 255, 255, 0.9); }
+
+    /* --- Setting Menu --- */
+    #pause-menu {
+        position: absolute;
+        top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background-color: rgba(50, 50, 80, 0.85);
+        backdrop-filter: blur(8px);
+        padding: 40px 50px; border-radius: 15px;
+        z-index: 25; /* Above petals, UI, game */
+        display: none; /* Start hidden */
+        flex-direction: column; align-items: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    #pause-menu h2 {
+        color: #ecf0f1; font-size: 36px; margin-bottom: 30px;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
+    #pause-menu button {
+        font-size: 18px; padding: 12px 30px; margin-top: 15px; cursor: pointer;
+        color: white; border: none; border-radius: 8px;
+        transition: background-color 0.2s ease; width: 150px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    }
+    #pause-resume-button { background-color: #F781BE; }
+    #pause-resume-button:hover { background-color: #E574AE; }
+    /* RESET Button CSS Removed */
+    #pause-menu-button { background-color: #B19CD9; } /* Light Purple */
+    #pause-menu-button:hover { background-color: #A18CC9; } /* Darker Light Purple */
+
+    /* --- Game Over Screen --- */
+    #game-over {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        font-size: 42px; font-weight: bold; color: #e74c3c;
+        background-color: rgba(255, 255, 255, 0.9); padding: 30px 40px;
+        border-radius: 15px;
+        display: none; /* Start hidden */
+        text-align: center;
+        z-index: 40; /* Highest */
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); pointer-events: auto;
+    }
+    #game-over #final-score { font-size: 28px; color: #333; display: block; margin: 10px 0 20px; }
+    #game-over button#gameOverMenuButton {
+        font-size: 20px; padding: 12px 25px; cursor: pointer; background-color: #3498db;
+        color: white; border: none; border-radius: 8px; transition: background-color 0.2s ease;
+        box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    #game-over button#gameOverMenuButton:hover { background-color: #2980b9; }
+
+</style>
+<!-- Include Matter.js library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+
+<!-- Game Wrapper -->
+<div id="game-wrapper">
+    <div id="petal-container"></div> <!-- Petal container -->
+
+    <!-- Start Menu (Initially Visible) -->
+    <div id="start-menu">
+        <a href="https://www.youtube.com/@plave_official" target="_blank" rel="noopener noreferrer" class="menu-link">https://www.youtube.com/@plave_official</a>
+        <h1>PLAVE GAME</h1>
+        <div id="difficulty-select">
+            <button id="easy-button" class="active">EASY</button>
+            <button id="hard-button">HARD</button>
+        </div>
+        <div id="volume-control">
+             <label for="volume-slider">Music Volume</label>
+             <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.3">
+        </div>
+        <button id="start-button">START</button>
+    </div>
+
+    <!-- Audio Elements -->
+    <audio id="bgMusic" src="background.mp3" loop preload="auto"></audio>
+    <audio id="dropSound" src="soundeffect.mp3" preload="auto"></audio>
+    <audio id="clickSound" src="click.mp3" preload="auto"></audio>
+
+    <!-- Game Container (Holds Canvas and In-Game UI) -->
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- In-Game UI Overlay -->
+        <div class="ui-overlay">
+             <div id="score-timer-container"> <!-- Initially hidden by CSS -->
+                 <div id="score">SCORE: 0</div> <!-- Initially hidden by CSS -->
+                 <div id="drop-timer-display">3</div> <!-- Initially hidden by CSS -->
+             </div>
+             <div id="next-preview-container"> <!-- Initially hidden by CSS -->
+                 <canvas id="nextCanvas"></canvas> <!-- Initially hidden by CSS -->
+                 <button id="menu-button">⚙️</button> <!-- Initially hidden by CSS -->
+             </div>
+        </div>
+
+         <!-- Setting Menu -->
+        <div id="pause-menu"> <!-- Initially hidden by CSS -->
+            <h2>SETTING</h2>
+            <button id="pause-resume-button">CONTINUE</button>
+            <!-- RESET Button HTML Removed -->
+            <button id="pause-menu-button">MENU</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over"> <!-- Initially hidden by CSS -->
+            GAME OVER
+            <span id="final-score"></span>
+            <button id="gameOverMenuButton">Back to Menu</button>
+        </div>
+    </div> <!-- End #game-container -->
+</div> <!-- End #game-wrapper -->
+
+
+<script>
+    // --- Config ---
+    const canvasWidth = 480; const canvasHeight = 720;
+    const numLevels = 11; const baseRadius = 15;
+    const radiusGrowthFactor = Math.sqrt(1.5);
+    const initialSpawnLevels = 5; const dropCooldown = 500;
+    const EASY_GAME_OVER_LINE_Y = 120;
+    const HARD_GAME_OVER_LINE_Y = 150;
+    const HARD_MODE_DROP_TIME = 3; // Seconds
+    const circleMoveStep = 5;
+    const imageUrls = ['https://i.imgur.com/Pc0ci5Y.jpeg', 'https://i.imgur.com/7k0OIlf.jpeg', 'https://i.imgur.com/Eav30tk.jpeg', 'https://i.imgur.com/m72SjlL.jpeg', 'https://i.imgur.com/yfqGeMC.jpeg', 'https://i.imgur.com/nbnnAFj.jpeg', 'https://i.imgur.com/hWBqCBg.jpeg', 'https://i.imgur.com/PoqHViG.jpeg', 'https://i.imgur.com/uhE2PaN.jpeg', 'https://i.imgur.com/122iwOQ.jpeg', 'https://i.imgur.com/wuI1HjL.jpeg'];
+    const levelScores = [1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 66];
+    const petalCreateInterval = 300; // Milliseconds between creating new petals
+
+    // --- Globals ---
+    let engine, world, runner, score = 0, currentCircleBody = null, currentCircleLevel = 0;
+    let nextCircleLevel = 0, canDrop = true, isGameOver = false;
+    let boundaryBottom, boundaryLeft, boundaryRight;
+    const circleConfigs = []; let isMovingLeft = false, isMovingRight = false;
+    let bgMusicElement = null, dropSoundElement = null, musicStarted = false;
+    let clickSoundElement = null;
+    let gameState = 'menu'; // Possible states: 'menu', 'playing', 'paused', 'gameover'
+    let difficulty = 'easy';
+    let gameOverLineY = EASY_GAME_OVER_LINE_Y;
+    let dropTimerIntervalId = null;
+    let dropTimerSecondsLeft = HARD_MODE_DROP_TIME;
+    let pausedTimerSecondsLeft = 0;
+    let petalIntervalId = null;
+    let animationFrameId = null; // Declare globally
+    let lastFrameTime = 0; // For calculating delta time
+
+    // --- Matter.js Modules ---
+    // Ensure Matter is loaded before trying to destructure
+    let MatterLib;
+    if (typeof Matter !== 'undefined') {
+         MatterLib = Matter;
+    } else {
+         console.error("Matter.js library not loaded!");
+         // Handle error appropriately, maybe show an error message to the user
+         alert("Error: Game library failed to load. Please refresh the page.");
+    }
+    const { Engine, Runner, World, Bodies, Body, Events, Composite, Vector } = MatterLib || {}; // Use || {} as fallback
+
+    // --- DOM Elements ---
+    const gameWrapper = document.getElementById('game-wrapper');
+    const startMenu = document.getElementById('start-menu');
+    const gameContainer = document.getElementById('game-container');
+    const canvas = document.getElementById('gameCanvas'), ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score');
+    const gameOverDisplay = document.getElementById('game-over'), finalScoreDisplay = document.getElementById('final-score');
+    const nextCanvas = document.getElementById('nextCanvas'), nextCtx = nextCanvas.getContext('2d');
+    const easyButton = document.getElementById('easy-button');
+    const hardButton = document.getElementById('hard-button');
+    const startButton = document.getElementById('start-button');
+    const menuButton = document.getElementById('menu-button');
+    const nextPreviewContainer = document.getElementById('next-preview-container');
+    const scoreTimerContainer = document.getElementById('score-timer-container');
+    const dropTimerDisplay = document.getElementById('drop-timer-display');
+    // const uiElements = document.querySelectorAll('.ui-element'); // Not used directly currently
+    const pauseMenu = document.getElementById('pause-menu');
+    const pauseResumeButton = document.getElementById('pause-resume-button');
+    // const pauseResetButton = document.getElementById('pause-reset-button'); // Removed
+    const pauseMenuButton = document.getElementById('pause-menu-button');
+    const volumeSlider = document.getElementById('volume-slider');
+    const gameOverMenuButton = document.getElementById('gameOverMenuButton');
+    const clickSound = document.getElementById('clickSound'); // Already fetched audio element
+    const petalContainer = document.getElementById('petal-container');
+
+    if(nextCanvas) { nextCanvas.width = 80; nextCanvas.height = 80; } // Ensure canvas size set
+
+    // --- Helper Function to Play Click Sound ---
+    function playClickSound() {
+        if (clickSoundElement) {
+            clickSoundElement.currentTime = 0;
+            const playPromise = clickSoundElement.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => { /* Ignore play error, common on rapid clicks */ });
+            }
+        }
+    }
+
+    // --- Sakura Petal Functions ---
+    function createPetal() {
+        if (!petalContainer || !gameWrapper) return;
+        const petal = document.createElement('div');
+        petal.classList.add('petal');
+
+        const startX = Math.random() * gameWrapper.offsetWidth;
+        const duration = Math.random() * 5 + 5;
+        const delay = Math.random() * 3;
+        const size = Math.random() * 5 + 8;
+
+        petal.style.left = `${startX}px`;
+        petal.style.width = `${size}px`;
+        petal.style.height = `${size * 1.5}px`;
+        petal.style.animationDuration = `${duration}s`;
+        petal.style.animationDelay = `${delay}s`;
+
+        petal.addEventListener('animationend', () => {
+            petal.remove();
+        });
+
+        petalContainer.appendChild(petal);
+    }
+
+    function startPetalEffect() {
+        stopPetalEffect(); // Clear existing interval/petals first
+        if (!petalContainer) return;
+        // Create initial batch
+        for(let i = 0; i < 15; i++) {
+            createPetal();
+        }
+        petalIntervalId = setInterval(createPetal, petalCreateInterval);
+        console.log("Petal effect started.");
+    }
+
+    function stopPetalEffect() {
+        clearInterval(petalIntervalId);
+        petalIntervalId = null;
+        if (petalContainer) petalContainer.innerHTML = ''; // Clear existing petals
+        // console.log("Petal effect stopped.");
+    }
+    // --- End Sakura Petal Functions ---
+
+
+    // --- Initial Setup (Run Once) ---
+    function globalSetup() {
+        console.log(">>> globalSetup: Starting initial setup...");
+        // Audio elements
+        bgMusicElement = document.getElementById('bgMusic');
+        dropSoundElement = document.getElementById('dropSound');
+        clickSoundElement = document.getElementById('clickSound'); // Fetching again, ensure ID matches
+        if (!bgMusicElement || !dropSoundElement || !clickSoundElement) console.error("Audio element(s) not found!");
+        if (bgMusicElement) bgMusicElement.volume = volumeSlider.value;
+        if (clickSoundElement) clickSoundElement.volume = 0.7;
+        if (dropSoundElement) dropSoundElement.volume = 0.6;
+
+        // Canvas setup
+        if(canvas) { canvas.width = canvasWidth; canvas.height = canvasHeight; } else { console.error("Main canvas not found!"); return; }
+
+        // Circle configs
+        for (let i = 0; i < numLevels; i++) {
+            const radius = baseRadius * Math.pow(radiusGrowthFactor, i);
+            const mass = Math.PI * Math.pow(radius, 2) / 1000;
+            circleConfigs.push({ level: i + 1, radius: radius, mass: mass, density: mass / (Math.PI * Math.pow(radius, 2)), imageUrl: imageUrls[i], image: null });
+        }
+        console.log(">>> globalSetup: Circle configs generated.");
+
+        // Event Listeners (Primary Actions)
+        easyButton?.addEventListener('click', () => selectDifficulty('easy'));
+        hardButton?.addEventListener('click', () => selectDifficulty('hard'));
+        startButton?.addEventListener('click', startGame);
+        volumeSlider?.addEventListener('input', handleVolumeChange);
+        menuButton?.addEventListener('click', togglePauseMenu);
+        pauseResumeButton?.addEventListener('click', togglePauseMenu);
+        // pauseResetButton listener removed
+        pauseMenuButton?.addEventListener('click', returnToMenuFromPause);
+        gameOverMenuButton?.addEventListener('click', returnToMenu);
+        console.log(">>> globalSetup: Button listeners added.");
+
+        // Click Sound Listeners
+        const clickableElements = [ easyButton, hardButton, startButton, menuButton, pauseResumeButton, /* pauseResetButton removed */ pauseMenuButton, gameOverMenuButton ];
+        clickableElements.forEach(element => {
+            if (element) element.addEventListener('click', playClickSound);
+        });
+
+        // Global Keyboard Listeners
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        console.log(">>> globalSetup: Keyboard listeners added.");
+
+        // Preload & Start Effects
+        preloadImages().then(() => {
+            console.log(">>> globalSetup: Assets preloaded.");
+            tryStartMusic(true);
+            startPetalEffect();
+        }).catch(err => {
+            console.error(">>> globalSetup: Asset load fail:", err);
+            alert("Failed to load game assets. Please refresh the page.");
+        });
+
+        // Interaction listener for music
+        startMenu?.addEventListener('click', () => tryStartMusic(false), { once: true });
+        gameContainer?.addEventListener('click', () => tryStartMusic(false), { once: true });
+        console.log(">>> globalSetup: Initial setup complete.");
+    }
+
+    function handleVolumeChange() {
+        if (bgMusicElement) {
+            bgMusicElement.volume = volumeSlider.value;
+            tryStartMusic(false);
+        }
+    }
+
+    function selectDifficulty(selectedDifficulty) {
+        difficulty = selectedDifficulty;
+        gameOverLineY = (difficulty === 'hard') ? HARD_GAME_OVER_LINE_Y : EASY_GAME_OVER_LINE_Y;
+        easyButton?.classList.toggle('active', difficulty === 'easy');
+        hardButton?.classList.toggle('active', difficulty === 'hard');
+        console.log(`Difficulty set to: ${difficulty}, Game Over Line: ${gameOverLineY}`);
+    }
+
+    function startGame() {
+        if (gameState === 'playing' || gameState === 'paused') return;
+        console.log(">>> startGame: Starting game...");
+        gameState = 'playing';
+
+        // Update UI visibility
+        startMenu.style.display = 'none';
+        pauseMenu.style.display = 'none';
+        gameOverDisplay.style.display = 'none';
+        scoreTimerContainer.style.display = 'flex';
+        nextPreviewContainer.style.display = 'flex';
+        menuButton.style.display = 'flex';
+        nextCanvas.style.display = 'block';
+        scoreDisplay.style.display = 'block';
+
+        if (difficulty === 'hard') {
+             dropTimerDisplay.style.display = 'block';
+        } else {
+             dropTimerDisplay.style.display = 'none';
+        }
+        console.log(">>> startGame: UI updated.");
+
+        initGame();
+    }
+
+    function preloadImages() {
+        console.log(">>> preloadImages: Preloading images...");
+        const promises = circleConfigs.map((config) => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = config.imageUrl;
+                img.onload = () => { config.image = img; resolve(); };
+                img.onerror = () => { console.error(`Failed load: ${config.imageUrl}`); reject(`Failed load: ${config.imageUrl}`); };
+            });
+        });
+        return Promise.all(promises);
+    }
+
+    function initGame() {
+        console.log(">>> initGame: Initializing game instance..."); // ADD LOG
+        clearGameArea();
+        console.log(">>> initGame: Game area cleared."); // ADD LOG
+
+        // Ensure Matter.js is available
+        if (!Engine || !World || !Bodies || !Runner || !Composite || !Events) {
+             console.error(">>> initGame: Matter.js modules not available!");
+             return;
+        }
+
+        // Create Matter.js engine and world
+        engine = Engine.create();
+        world = engine.world;
+        engine.gravity.y = 1.0;
+        engine.positionIterations = 10;
+        engine.velocityIterations = 8;
+        runner = Runner.create();
+        console.log(">>> initGame: Engine and Runner created."); // ADD LOG
+
+        // Create boundaries
+        const wallThickness = 60;
+        boundaryBottom = Bodies.rectangle(canvasWidth / 2, canvasHeight + wallThickness / 2, canvasWidth + 2 * wallThickness, wallThickness, { isStatic: true, label: 'ground', render: { visible: false } });
+        boundaryLeft = Bodies.rectangle(-wallThickness / 2, canvasHeight / 2, wallThickness, canvasHeight * 2, { isStatic: true, label: 'wall-left', render: { visible: false } });
+        boundaryRight = Bodies.rectangle(canvasWidth + wallThickness / 2, canvasHeight / 2, wallThickness, canvasHeight * 2, { isStatic: true, label: 'wall-right', render: { visible: false } });
+        World.add(world, [boundaryBottom, boundaryLeft, boundaryRight]);
+        console.log(">>> initGame: Boundaries added to world."); // ADD LOG
+
+        // Reset game state variables
+        score = 0;
+        isGameOver = false;
+        canDrop = true;
+        currentCircleBody = null; // Crucial to reset here before prepare
+        isMovingLeft = false;
+        isMovingRight = false;
+        updateScoreDisplay();
+        console.log(">>> initGame: State variables reset (isGameOver=" + isGameOver + ", currentCircleBody=" + currentCircleBody + ")."); // ADD LOG
+
+        // Setup engine-specific event listeners
+        setupEngineEventListeners();
+
+        // Prepare the first circle
+        console.log(">>> initGame: Selecting next circle..."); // ADD LOG
+        selectNextCircle();
+        console.log(`>>> initGame: Next circle selected (level ${nextCircleLevel}), preparing falling circle...`); // ADD LOG
+        prepareFallingCircle(); // *** This should create the new circle ***
+        console.log(">>> initGame: Falling circle prepared. Current body:", currentCircleBody ? `ID ${currentCircleBody.id}, Level ${currentCircleBody.plugin.level}` : "null"); // ADD LOG
+
+        // Ensure music is handled correctly
+        if (musicStarted && bgMusicElement) {
+            bgMusicElement.volume = volumeSlider.value;
+            if (bgMusicElement.paused) {
+                 bgMusicElement.play().catch(e => console.warn("Error playing music after init/reset:", e));
+            }
+        } else {
+             tryStartMusic(false);
+        }
+
+        gameState = 'playing'; // Confirm state is playing
+        console.log(`>>> initGame: gameState set to '${gameState}'.`); // ADD LOG
+
+        console.log(">>> initGame: Starting game loop..."); // ADD LOG
+        lastFrameTime = performance.now(); // Reset frame time before starting loop
+        runGameLoop(); // Start the main game loop
+        console.log(">>> initGame: Initialization complete."); // ADD LOG
+
+        // DEBUG: Check bodies in world shortly after init
+        setTimeout(() => {
+            if (world && Composite) {
+                 try {
+                     console.log(">>> initGame (post-timeout): Bodies in world:", Composite.allBodies(world).map(b => `${b.label} (ID ${b.id})`));
+                 } catch (e) {
+                     console.error(">>> initGame (post-timeout): Error checking bodies:", e);
+                 }
+            } else {
+                console.log(">>> initGame (post-timeout): World or Composite not available.");
+            }
+        }, 100); // Check after a short delay
+    }
+
+    function runGameLoop(currentTime = performance.now()) { // Provide default for initial call
+        // Stop the loop if the game state is not 'playing'
+        if (gameState !== 'playing') {
+            // console.log(`Game loop stopped. State: ${gameState}`); // Keep commented unless needed
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            return;
+        }
+        // console.log(">>> runGameLoop: Tick"); // Can be too noisy
+
+        // Ensure Matter.js modules are available
+        if (!Runner || !engine || !Composite) {
+            console.error(">>> runGameLoop: Matter components missing, stopping loop.");
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+            return;
+        }
+
+        // Calculate delta time
+        const deltaTime = (currentTime - lastFrameTime) / 1000;
+        lastFrameTime = currentTime;
+
+        // --- Game Logic Updates ---
+        updateMovement();
+        Runner.tick(runner, engine, 1000 / 60); // Advance physics
+        checkGameOver();
+
+        // --- Rendering ---
+        renderGame();
+
+        // Request the next frame
+        animationFrameId = requestAnimationFrame(runGameLoop);
+    }
+
+    function createCircle(level, x, y, options = {}) {
+         const config = circleConfigs[level - 1];
+         if (!config) { console.error(`Invalid level requested: ${level}`); return null; }
+         // Ensure Bodies is available
+         if (!Bodies) { console.error("Matter.Bodies not available in createCircle!"); return null; }
+         const body = Bodies.circle(x, y, config.radius, { friction: 0.6, restitution: 0.25, density: config.density, label: 'circle', plugin: { level: level, image: config.image, radius: config.radius, gameOverCheckTimeout: null }, frictionAir: 0.01, ...options });
+         return body;
+    }
+
+    function selectNextCircle() {
+         nextCircleLevel = Math.floor(Math.random() * initialSpawnLevels) + 1;
+         drawNextPreview();
+    }
+
+    function prepareFallingCircle() {
+        console.log(`>>> prepareFallingCircle: Attempting to prepare. State: ${gameState}, Game Over: ${isGameOver}`); // ADD LOG
+        // Only prepare if playing and not game over
+        if (gameState !== 'playing' || isGameOver) {
+            console.log(">>> prepareFallingCircle: Aborted (not playing or game over)."); // ADD LOG
+            return;
+        }
+
+        // Ensure World and createCircle are available
+        if (!World || !createCircle) {
+            console.error(">>> prepareFallingCircle: World or createCircle function not available!");
+            return;
+        }
+
+        currentCircleLevel = nextCircleLevel;
+        const config = circleConfigs[currentCircleLevel - 1];
+        if (!config) {
+            console.error(">>> prepareFallingCircle: Could not find config for current level:", currentCircleLevel); // ADD LOG
+            return;
+        }
+        console.log(`>>> prepareFallingCircle: Preparing level ${currentCircleLevel}.`); // ADD LOG
+
+        const spawnX = canvasWidth / 2;
+        const spawnY = Math.min(config.radius + 10, EASY_GAME_OVER_LINE_Y - config.radius - 20);
+
+        // Create the circle body
+        currentCircleBody = createCircle(currentCircleLevel, spawnX, spawnY, {
+             isSleeping: true,
+             isSensor: true,
+             sleepThreshold: -1
+        });
+
+        if (currentCircleBody) {
+             console.log(">>> prepareFallingCircle: New circle body created:", currentCircleBody); // ADD LOG
+             World.add(world, currentCircleBody); // Add to the physics world
+             console.log(`>>> prepareFallingCircle: Added body ID ${currentCircleBody.id} to world.`); // ADD LOG
+             selectNextCircle();   // Choose the *next* circle for the preview
+             console.log(`>>> prepareFallingCircle: Selected next preview level ${nextCircleLevel}.`); // ADD LOG
+             canDrop = true;       // Enable dropping
+             console.log(">>> prepareFallingCircle: Set canDrop = true."); // ADD LOG
+             if (difficulty === 'hard') {
+                 startDropTimer(HARD_MODE_DROP_TIME);
+             }
+        } else {
+             console.error(">>> prepareFallingCircle: Failed to create currentCircleBody!"); // ADD LOG
+        }
+    }
+
+    function dropCircle(isAutoDrop = false) {
+        if (!currentCircleBody || !canDrop || gameState !== 'playing' || isGameOver) return;
+        if (!Body) { console.error("Matter.Body not available in dropCircle!"); return; }
+
+        stopDropTimer();
+        if (dropSoundElement) { dropSoundElement.currentTime = 0; const p = dropSoundElement.play(); if(p) p.catch(e=>{}); }
+
+        Body.set(currentCircleBody, { isSleeping: false, isSensor: false });
+        Body.setStatic(currentCircleBody, false);
+        Body.setAngle(currentCircleBody, (Math.random() - 0.5) * 0.1);
+
+        isMovingLeft = false; isMovingRight = false;
+        currentCircleBody = null; canDrop = false;
+
+        setTimeout(() => { if (gameState === 'playing' && !isGameOver) prepareFallingCircle(); }, dropCooldown);
+    }
+
+    function startDropTimer(seconds) {
+        stopDropTimer(); if (difficulty !== 'hard' || gameState !== 'playing' || isGameOver) return;
+        dropTimerSecondsLeft = seconds; dropTimerDisplay.textContent = dropTimerSecondsLeft; dropTimerDisplay.style.display = 'block';
+        dropTimerIntervalId = setInterval(() => {
+            if (gameState !== 'playing' || isGameOver) { stopDropTimer(); return; }
+            dropTimerSecondsLeft--;
+            if (dropTimerSecondsLeft <= 0) { dropCircle(true); }
+            else { dropTimerDisplay.textContent = dropTimerSecondsLeft; }
+        }, 1000);
+    }
+
+    function stopDropTimer() {
+        clearInterval(dropTimerIntervalId); dropTimerIntervalId = null;
+    }
+
+    function handleCollisions(event) {
+         if (gameState !== 'playing' || isGameOver) return;
+         if (!Composite || !World || !Bodies || !Body) { console.error("Matter modules missing in handleCollisions"); return; }
+
+         const pairs = event.pairs; const bodiesToRemove = new Set(); const bodiesToAdd = []; let scoreToAdd = 0; let mergedPositions = [];
+         for (const pair of pairs) { const bodyA = pair.bodyA; const bodyB = pair.bodyB; if (bodyA.label === 'circle' && bodyB.label === 'circle') { if (!bodyA.plugin || !bodyB.plugin || bodyA.isSensor || bodyB.isSensor || bodiesToRemove.has(bodyA) || bodiesToRemove.has(bodyB)) continue; if (bodyA.plugin.level === bodyB.plugin.level) { const level = bodyA.plugin.level; const mergeX = (bodyA.position.x + bodyB.position.x) / 2; const mergeY = (bodyA.position.y + bodyB.position.y) / 2; bodiesToRemove.add(bodyA); bodiesToRemove.add(bodyB); scoreToAdd += levelScores[level - 1]; if (level < numLevels) { const nextLevel = level + 1; const newCircle = createCircle(nextLevel, mergeX, mergeY); if (newCircle) { Body.applyForce(newCircle, newCircle.position, { x: 0, y: -0.005 * newCircle.mass }); bodiesToAdd.push(newCircle); mergedPositions.push(newCircle.position); } } else { mergedPositions.push({x: mergeX, y: mergeY}); } } } }
+         if (bodiesToRemove.size > 0) { bodiesToRemove.forEach(body => Composite.remove(world, body)); if (bodiesToAdd.length > 0) World.add(world, bodiesToAdd); score += scoreToAdd; updateScoreDisplay(); }
+    }
+
+    function checkGameOver() {
+        if (gameState !== 'playing' || isGameOver) return;
+        if (!Composite || !world) return; // Check dependencies
+
+        const bodies = Composite.allBodies(world);
+        let shouldTriggerGameOver = false; // Flag to trigger outside loop
+
+        for (const body of bodies) {
+            if (body.label === 'circle' && !body.isSensor && body.plugin && body.plugin.radius) {
+                const topY = body.position.y - body.plugin.radius;
+                if (topY < gameOverLineY) {
+                    if (body.velocity.y < 0.5 && body.velocity.y > -1 && !body.isSleeping) {
+                        if (!body.plugin.gameOverCheckTimeout) {
+                            body.plugin.gameOverCheckTimeout = setTimeout(() => {
+                                const currentBody = Composite.get(world, body.id, 'body');
+                                if (currentBody && gameState === 'playing' && !isGameOver) {
+                                    const currentTopY = currentBody.position.y - currentBody.plugin.radius;
+                                    if (currentTopY < gameOverLineY && currentBody.velocity.y < 0.5 && currentBody.velocity.y > -1 && !currentBody.isSleeping) {
+                                        shouldTriggerGameOver = true;
+                                    }
+                                }
+                                if(body.plugin) body.plugin.gameOverCheckTimeout = null; // Clear timeout ref
+
+                                // Trigger outside the setTimeout if flag is set
+                                if (shouldTriggerGameOver) {
+                                    triggerGameOver();
+                                }
+                            }, 250);
+                        }
+                    } else { if (body.plugin.gameOverCheckTimeout) { clearTimeout(body.plugin.gameOverCheckTimeout); body.plugin.gameOverCheckTimeout = null; } }
+                } else { if (body.plugin.gameOverCheckTimeout) { clearTimeout(body.plugin.gameOverCheckTimeout); body.plugin.gameOverCheckTimeout = null; } }
+            }
+        }
+    }
+
+
+    function triggerGameOver() {
+        if (isGameOver || gameState === 'gameover') return;
+        console.log("Game Over triggered!");
+        isGameOver = true; gameState = 'gameover';
+
+        stopDropTimer();
+        if (runner && Runner) Runner.stop(runner); // Check Runner exists
+        if (bgMusicElement) bgMusicElement.pause();
+
+        if(world && Composite) { // Check dependencies
+             Composite.allBodies(world).forEach(body => { if (body.plugin && body.plugin.gameOverCheckTimeout) { clearTimeout(body.plugin.gameOverCheckTimeout); body.plugin.gameOverCheckTimeout = null; } });
+        }
+
+        finalScoreDisplay.textContent = `Final Score: ${score}`;
+        gameOverDisplay.style.display = 'block';
+        pauseMenu.style.display = 'none';
+        scoreTimerContainer.style.display = 'none';
+        nextPreviewContainer.style.display = 'none';
+        menuButton.style.display = 'none';
+        dropTimerDisplay.style.display = 'none';
+    }
+
+    function clearGameArea() {
+         console.log(">>> clearGameArea: Clearing game area...");
+         stopDropTimer();
+
+         if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; console.log(">>> clearGameArea: Animation frame cancelled."); }
+         if (runner && Runner) { Runner.stop(runner); runner = null; console.log(">>> clearGameArea: Matter Runner stopped."); } // Check Runner
+         if (engine && Events) { Events.off(engine, 'collisionStart', handleCollisions); engine = null; console.log(">>> clearGameArea: Engine collision listeners removed."); } // Check Events
+         if (world && World && Composite) { // Check dependencies
+             Composite.allBodies(world).forEach(body => { if (body.plugin && body.plugin.gameOverCheckTimeout) { clearTimeout(body.plugin.gameOverCheckTimeout); body.plugin.gameOverCheckTimeout = null; } });
+             World.clear(world, false); // Keep static bodies = false, we recreate them anyway
+             world = null;
+             console.log(">>> clearGameArea: Matter World cleared.");
+         }
+
+         if (ctx) { ctx.clearRect(0, 0, canvasWidth, canvasHeight); console.log(">>> clearGameArea: Canvas cleared."); }
+         if (nextCtx && nextCanvas) { nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height); console.log(">>> clearGameArea: Next preview canvas cleared."); }
+
+         currentCircleBody = null;
+         isGameOver = false;
+         canDrop = true;
+         isMovingLeft = false;
+         isMovingRight = false;
+         console.log(">>> clearGameArea: Game area cleared.");
+    }
+
+
+    function togglePauseMenu() {
+        playClickSound();
+        if (gameState === 'playing') {
+            gameState = 'paused'; console.log("Game Paused -> Settings Menu");
+            if (runner && Runner) Runner.stop(runner); // Check Runner
+            if (animationFrameId) cancelAnimationFrame(animationFrameId); animationFrameId = null;
+            pausedTimerSecondsLeft = dropTimerSecondsLeft; stopDropTimer();
+            if (bgMusicElement) bgMusicElement.pause();
+            pauseMenu.style.display = 'flex';
+            if (difficulty === 'hard') dropTimerDisplay.style.display = 'none';
+        } else if (gameState === 'paused') {
+            gameState = 'playing'; console.log("Game Resumed from Settings Menu");
+            pauseMenu.style.display = 'none';
+            if (bgMusicElement && musicStarted) bgMusicElement.play().catch(e => console.warn("Error resuming music:", e));
+            if (difficulty === 'hard') { dropTimerDisplay.style.display = 'block'; startDropTimer(pausedTimerSecondsLeft); }
+            lastFrameTime = performance.now(); // Reset frame time before restarting loop
+            runGameLoop();
+        }
+    }
+
+    // Function Removed (resetGameFromPause) as button is gone
+
+    function returnToMenuFromPause() {
+        console.log("Returning to menu from pause menu...");
+        pauseMenu.style.display = 'none';
+        returnToMenu();
+    }
+
+    function returnToMenu() {
+        console.log("Returning to menu..."); if (gameState === 'menu') return;
+        const previousState = gameState; gameState = 'menu';
+        clearGameArea();
+
+        if (bgMusicElement && musicStarted) {
+            if (previousState === 'gameover') {
+                 bgMusicElement.currentTime = 0; bgMusicElement.play().catch(e=>console.warn("Error playing music on return to menu:", e));
+            } else if (bgMusicElement.paused) {
+                bgMusicElement.play().catch(e=>console.warn("Error playing music on return to menu:", e));
+            }
+             bgMusicElement.volume = volumeSlider.value;
+        } else { tryStartMusic(true); }
+
+        scoreTimerContainer.style.display = 'none';
+        nextPreviewContainer.style.display = 'none';
+        menuButton.style.display = 'none';
+        dropTimerDisplay.style.display = 'none';
+        pauseMenu.style.display = 'none';
+        gameOverDisplay.style.display = 'none';
+        startMenu.style.display = 'flex';
+        // startPetalEffect(); // Optionally restart petals
+    }
+
+    function renderGame() {
+        if (!ctx || !world || !Composite) return; // Check dependencies
+
+        // console.log(">>> renderGame: Rendering frame"); // Noisy
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        // Draw circles
+        const bodies = Composite.allBodies(world);
+        bodies.forEach(body => {
+             if (body.label === 'circle' && body.plugin && body.plugin.image && body.plugin.radius) {
+                const { position, angle } = body; const { radius, image } = body.plugin;
+                ctx.save(); ctx.translate(position.x, position.y); ctx.rotate(angle);
+                ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+                if (image.complete && image.naturalWidth !== 0) {
+                    const drawSize = radius * 2.1;
+                    ctx.drawImage(image, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+                } else { ctx.fillStyle = '#bdc3c7'; ctx.fill(); }
+                ctx.restore();
+            }
+        });
+
+        // Draw aiming line
+        if (currentCircleBody && currentCircleBody.isSensor && gameState === 'playing' && !isGameOver) {
+             //console.log(`>>> renderGame: Drawing aiming line for Circle ID ${currentCircleBody.id}`); // ADD LOG (Important!) - Can be noisy
+            const { position } = currentCircleBody; const radius = currentCircleBody.plugin.radius;
+            const startY = position.y + radius * 0.8;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2.5; ctx.setLineDash([6, 6]);
+            ctx.beginPath(); ctx.moveTo(position.x, startY); ctx.lineTo(position.x, canvasHeight); ctx.stroke(); ctx.setLineDash([]);
+        } else if (!currentCircleBody && gameState === 'playing' && !isGameOver) {
+            // console.log(">>> renderGame: No currentCircleBody to draw aiming line for."); // Noisy
+        }
+
+        // Draw Game Over line
+        ctx.strokeStyle = 'rgba(137, 207, 240, 0.6)';
+        ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+        ctx.beginPath(); ctx.moveTo(0, gameOverLineY); ctx.lineTo(canvasWidth, gameOverLineY); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    function drawNextPreview() {
+        if (!nextCtx || !nextCanvas || !circleConfigs || nextCircleLevel <= 0 || gameState === 'gameover' || gameState === 'menu') {
+            if (nextCtx && nextCanvas) nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height); // Clear if invalid state
+            return;
+        }
+        const previewCanvasSize = nextCanvas.width;
+        nextCtx.clearRect(0, 0, previewCanvasSize, previewCanvasSize);
+        const config = circleConfigs[nextCircleLevel - 1];
+        if (!config) return;
+        const image = config.image; const radius = config.radius;
+        const previewRadius = Math.min(radius, previewCanvasSize * 0.35);
+        nextCtx.save(); nextCtx.translate(previewCanvasSize / 2, previewCanvasSize / 2);
+        nextCtx.beginPath(); nextCtx.arc(0, 0, previewRadius, 0, Math.PI * 2); nextCtx.closePath(); nextCtx.clip();
+        if (image && image.complete && image.naturalWidth !== 0) { const drawSize = previewRadius * 2.1; nextCtx.drawImage(image, -drawSize / 2, -drawSize / 2, drawSize, drawSize); }
+        else { nextCtx.fillStyle = '#ecf0f1'; nextCtx.fill(); }
+        nextCtx.restore();
+    }
+
+    function updateScoreDisplay() {
+        if(scoreDisplay) scoreDisplay.textContent = `SCORE: ${score}`;
+    }
+
+    function setupEngineEventListeners() {
+        if (engine && Events) { // Check dependencies
+            Events.off(engine, 'collisionStart', handleCollisions);
+            Events.on(engine, 'collisionStart', handleCollisions);
+            console.log(">>> setupEngineEventListeners: Engine collision listener attached.");
+        } else {
+            console.error(">>> setupEngineEventListeners: Engine or Events not available for listener setup!");
+        }
+    }
+
+    function handleKeyDown(event) {
+        if ((event.key === 'Escape' || event.key.toLowerCase() === 'p') && (gameState === 'playing' || gameState === 'paused')) {
+             event.preventDefault(); togglePauseMenu(); return;
+        }
+        if (gameState !== 'playing' || isGameOver || !currentCircleBody || !currentCircleBody.isSensor) return;
+
+        switch (event.key.toLowerCase()) {
+            case 'arrowleft': case 'a': isMovingLeft = true; event.preventDefault(); break;
+            case 'arrowright': case 'd': isMovingRight = true; event.preventDefault(); break;
+            case ' ': case 'arrowdown': case 's': event.preventDefault(); dropCircle(); break;
+        }
+    }
+
+    function handleKeyUp(event) {
+         switch (event.key.toLowerCase()) {
+             case 'arrowleft': case 'a': isMovingLeft = false; break;
+             case 'arrowright': case 'd': isMovingRight = false; break;
+         }
+    }
+
+    function updateMovement() {
+        if (gameState !== 'playing' || isGameOver || !currentCircleBody || !currentCircleBody.isSensor) {
+            if (isMovingLeft || isMovingRight) { isMovingLeft = false; isMovingRight = false; }
+            return;
+        }
+        if (!Body || !circleConfigs || currentCircleLevel <= 0) return; // Check dependencies
+
+        let dx = 0; if (isMovingLeft && !isMovingRight) dx = -circleMoveStep; else if (isMovingRight && !isMovingLeft) dx = circleMoveStep;
+        if (dx !== 0) { const config = circleConfigs[currentCircleLevel - 1]; if (!config) return; const currentPos = currentCircleBody.position; let targetX = currentPos.x + dx; targetX = Math.max(config.radius, Math.min(canvasWidth - config.radius, targetX)); if (targetX !== currentPos.x) { Body.setPosition(currentCircleBody, { x: targetX, y: currentPos.y }); } }
+    }
+
+    function tryStartMusic(isInitialAttempt) {
+        if (!bgMusicElement) return;
+        if (!musicStarted && bgMusicElement.paused) {
+            bgMusicElement.volume = volumeSlider.value; const playPromise = bgMusicElement.play();
+            if (playPromise !== undefined) { playPromise.then(_ => { musicStarted = true; console.log("Background music started successfully."); }).catch(error => { console.warn("Autoplay failed (likely browser policy):", error); musicStarted = false; }); }
+            else { musicStarted = !bgMusicElement.paused; if(musicStarted) console.log("Background music started (no promise)."); }
+        } else if (musicStarted && bgMusicElement.paused && (gameState === 'playing' || gameState === 'menu')) {
+             bgMusicElement.volume = volumeSlider.value; bgMusicElement.play().catch(e => console.warn("Error resuming music:", e));
+        }
+    }
+
+    // --- Start ---
+    // Defensive check for Matter before starting
+    if (typeof Matter !== 'undefined' && MatterLib) {
+        globalSetup(); // Run the initial setup once on page load
+    } else {
+        // Handle the case where Matter.js didn't load properly earlier
+        console.error("Cannot start game: Matter.js failed to load.");
+        // Optionally display an error message in the UI
+        const errorDiv = document.createElement('div');
+        errorDiv.textContent = "Error loading game resources. Please check your internet connection and refresh.";
+        errorDiv.style.color = 'red';
+        errorDiv.style.textAlign = 'center';
+        errorDiv.style.marginTop = '50px';
+        document.body.innerHTML = ''; // Clear body
+        document.body.appendChild(errorDiv);
+    }
+
+</script>
+
+</body>
+</html>
